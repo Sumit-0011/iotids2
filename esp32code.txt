@@ -1,0 +1,142 @@
+#include <Arduino.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <WebServer.h>
+
+const char* ssid = "Pavan";
+const char* password = "12345678";
+
+const char* serverURL = "http://10.255.121.175:8080";
+
+WebServer server(80);
+
+int fuzz_level = 1;
+int send_interval = 1000;
+
+int counter = 0;
+bool attack_mode = false;
+
+void handleCommand() {
+  if (server.hasArg("fuzz"))
+    fuzz_level = server.arg("fuzz").toInt();
+
+  if (server.hasArg("interval"))
+    send_interval = server.arg("interval").toInt();
+
+  Serial.println("\n[AI CONTROL UPDATE]");
+  Serial.print("Fuzz: "); Serial.println(fuzz_level);
+  Serial.print("Interval: "); Serial.println(send_interval);
+
+  server.send(200, "text/plain", "OK");
+}
+
+String generateJSON() {
+  static float temperature = 25;
+  static float humidity = 60;
+  static float sound = 40;
+  static float battery = 80;
+
+  static int counter = 5;
+  counter++;
+
+  int movement = random(0, 2);
+
+  
+  if (counter < 15) {
+    Serial.println("[NORMAL PHASE]");
+
+    temperature = 25 + random(-1, 2);
+    humidity = 60 + random(-2, 2);
+    sound = 40 + random(-2, 2);
+    battery = 80 + random(-1, 1);
+  }
+  else if (counter < 40) {
+    Serial.println("[STEALTH ATTACK]");
+
+    float drift = 0.1 + fuzz_level * 0.1;
+
+    temperature += drift;
+    humidity += drift * 0.5;
+    sound += drift * 0.7;
+    battery -= drift * 0.2;
+
+    
+    temperature = constrain(temperature, 22, 32);
+    humidity = constrain(humidity, 45, 70);
+    sound = constrain(sound, 35, 50);
+  }
+  else if (counter < 55) {
+    Serial.println("[AGGRESSIVE ATTACK] 🚨");
+
+    
+    temperature += random(3, 6);   // big jump
+    humidity += random(5, 10);
+    sound += random(10, 20);
+    battery -= random(5, 10);
+
+    // allow abnormal range
+    temperature = constrain(temperature, 22, 80);
+    humidity = constrain(humidity, 40, 120);
+    sound = constrain(sound, 30, 200);
+  }
+  else {
+    Serial.println("[RESET]");
+
+    counter = 0;  // restart cycle
+  }
+
+  String json = "{";
+  json += "\"device\":\"military_compromised\",";
+  json += "\"temperature\":" + String(temperature, 2) + ",";
+  json += "\"humidity\":" + String(humidity, 2) + ",";
+  json += "\"movement\":" + String(movement) + ",";
+  json += "\"sound_level\":" + String(sound, 2) + ",";
+  json += "\"battery\":" + String(battery, 2) + ",";
+  json += "\"fuzz\":" + String(fuzz_level) + ",";
+  json += "\"interval\":" + String(send_interval);
+  json += "}";
+
+  return json;
+}
+
+void sendData() {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    http.begin(serverURL);
+    http.addHeader("Content-Type", "application/json");
+
+    String payload = generateJSON();
+
+    Serial.println("\n[SENDING]");
+    Serial.println(payload);
+
+    http.POST(payload);
+    http.end();
+  }
+}
+
+void setup() {
+  Serial.begin(921600);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+  }
+
+  Serial.println("Connected!");
+  Serial.println(WiFi.localIP());
+
+  randomSeed(millis());
+
+  server.on("/command", handleCommand);
+  server.begin();
+}
+
+void loop() {
+  server.handleClient();
+
+  sendData();
+
+  int jitter = random(-100, 100);
+  delay(max(300, send_interval + jitter));  // 🔥 SAFE DELAY
+}
