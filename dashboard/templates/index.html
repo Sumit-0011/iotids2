@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Real-time IoT Intrusion Detection System Dashboard — Monitor network anomalies with ML-powered analysis">
+    <title>IoT IDS — Intrusion Detection Dashboard</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="/static/style.css">
+
+    <!-- Favicon (inline SVG) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+</head>
+<body>
+
+<div class="dashboard-container">
+
+    <!-- ═══════ HEADER ═══════ -->
+    <header class="header" id="dashboardHeader">
+        <div class="header-left">
+            <div class="header-logo">🛡</div>
+            <div>
+                <h1 class="header-title">IoT Intrusion Detection System</h1>
+                <p class="header-subtitle">Real-Time Anomaly Monitoring</p>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="status-indicator" id="statusIndicator">
+                <span class="status-dot pulse"></span>
+                <span class="status-text" id="statusText">SYSTEM SECURE</span>
+            </div>
+            <button class="btn-reset" id="btnReset">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="1 4 1 10 7 10"></polyline>
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                </svg>
+                Reset
+            </button>
+        </div>
+    </header>
+
+    <!-- ═══════ STATS ROW ═══════ -->
+    <section class="stats-row">
+        <!-- Total Packets -->
+        <div class="glass-card stat-card">
+            <div class="stat-icon">📡</div>
+            <div class="stat-label">Total Packets</div>
+            <div class="stat-value" id="statTotal">0</div>
+        </div>
+        <!-- Anomalies Detected -->
+        <div class="glass-card stat-card">
+            <div class="stat-icon">🚨</div>
+            <div class="stat-label">Anomalies Detected</div>
+            <div class="stat-value" id="statAnomalies">0</div>
+        </div>
+        <!-- Stealth Rate -->
+        <div class="glass-card stat-card">
+            <div class="stat-icon">⚡</div>
+            <div class="stat-label">Stealth Rate</div>
+            <div class="stat-value" id="statStealth">0.0%</div>
+        </div>
+        <!-- Current Status -->
+        <div class="glass-card stat-card">
+            <div class="stat-icon">🔒</div>
+            <div class="stat-label">Current Status</div>
+            <div class="stat-value status-safe" id="statStatus">SAFE</div>
+        </div>
+    </section>
+
+    <!-- ═══════ DETECTION INTELLIGENCE (Ensemble + XAI) ═══════ -->
+    <section class="intel-section">
+        <div class="glass-card intel-card">
+            <div class="intel-header">
+                <span class="intel-title">🧠 Detection Intelligence</span>
+                <span class="intel-sub">Dual-Detector Ensemble &amp; Explainable AI</span>
+            </div>
+            <div class="intel-body">
+                <!-- Ensemble: two independent detectors vote -->
+                <div class="intel-block">
+                    <div class="intel-block-label">Ensemble Detectors</div>
+                    <div class="model-chips">
+                        <div class="model-chip" id="chipIforest">
+                            <span class="chip-dot"></span>
+                            <span class="chip-name">Isolation Forest</span>
+                            <span class="chip-verdict" id="verdictIforest">—</span>
+                        </div>
+                        <div class="model-chip" id="chipOcsvm">
+                            <span class="chip-dot"></span>
+                            <span class="chip-name">One-Class SVM</span>
+                            <span class="chip-verdict" id="verdictOcsvm">—</span>
+                        </div>
+                    </div>
+                    <div class="ensemble-verdict" id="ensembleVerdict">
+                        Awaiting telemetry…
+                    </div>
+                </div>
+                <!-- XAI: which sensor drove the decision -->
+                <div class="intel-block">
+                    <div class="intel-block-label">
+                        Why? <span class="intel-hint">— feature attribution</span>
+                    </div>
+                    <div class="attribution-bars" id="attributionBars">
+                        <div class="attr-empty">No detection yet.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════ CHARTS GRID ═══════ -->
+    <section class="charts-grid">
+        <!-- Temperature Chart -->
+        <div class="glass-card chart-card">
+            <div class="chart-header">
+                <span class="chart-title">
+                    <span class="chart-dot orange"></span>
+                    Temperature
+                </span>
+                <span class="chart-value" id="tempValue">-- °C</span>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="tempChart"></canvas>
+            </div>
+        </div>
+        <!-- Humidity Chart -->
+        <div class="glass-card chart-card">
+            <div class="chart-header">
+                <span class="chart-title">
+                    <span class="chart-dot cyan"></span>
+                    Humidity
+                </span>
+                <span class="chart-value" id="humidityValue">-- %</span>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="humidityChart"></canvas>
+            </div>
+        </div>
+        <!-- Sound Level Chart -->
+        <div class="glass-card chart-card">
+            <div class="chart-header">
+                <span class="chart-title">
+                    <span class="chart-dot purple"></span>
+                    Sound Level
+                </span>
+                <span class="chart-value" id="soundValue">-- dB</span>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="soundChart"></canvas>
+            </div>
+        </div>
+        <!-- Battery Chart -->
+        <div class="glass-card chart-card">
+            <div class="chart-header">
+                <span class="chart-title">
+                    <span class="chart-dot green"></span>
+                    Battery
+                </span>
+                <span class="chart-value" id="batteryValue">-- %</span>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="batteryChart"></canvas>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════ DETECTION LOG ═══════ -->
+    <section class="log-section">
+        <div class="glass-card log-card">
+            <div class="log-header">
+                <span class="log-title">
+                    📋 Detection Log
+                    <span class="log-badge" id="logCount">0</span>
+                </span>
+            </div>
+            <div class="log-table-wrapper">
+                <table class="log-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Temp</th>
+                            <th>Humidity</th>
+                            <th>Sound</th>
+                            <th>Battery</th>
+                            <th>Fuzz</th>
+                            <th>Score</th>
+                            <th>Cause</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logBody">
+                        <tr id="logEmpty">
+                            <td colspan="9">
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">📭</div>
+                                    <div class="empty-state-text">Waiting for telemetry data…</div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════ FOOTER ═══════ -->
+    <footer class="footer">
+        <span>IoT IDS Dashboard</span> v2.0 &nbsp;•&nbsp; Ensemble ML (Isolation Forest + One-Class SVM) &nbsp;•&nbsp; Explainable AI
+    </footer>
+
+</div>
+
+<!-- ═══════ SCRIPTS ═══════ -->
+<script src="/static/chart.min.js"></script>
+<script src="/static/dashboard.js"></script>
+
+</body>
+</html>

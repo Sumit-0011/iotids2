@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Generated outputs
+plots/final_graph.png
+plots/detection_graph.png
+*.png
+
+# Live data log — regenerated each run, do not commit large logs
+data/data2.csv
+
+# Retrained models (optional, can be large)
+models/ids_model_v2.pkl
+models/scaler_v2.pkl
+
+# Downloaded JS libraries
+dashboard/static/chart.min.js
+dashboard/static/socket.io.min.js
+
+# Scratch / temp files and logs
+run_out.txt
+run_err.txt
+dash.log
+test_ws.py
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
