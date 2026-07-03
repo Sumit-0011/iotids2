@@ -96,6 +96,9 @@ def main():
     parser = argparse.ArgumentParser(description="IoT IDS Unified Launcher")
     parser.add_argument("--attack", action="store_true")
     parser.add_argument("--smart-attack", action="store_true")
+    parser.add_argument("--adversarial", action="store_true",
+                        help="Live white-box adversarial bypass demo (IDS + dashboard + "
+                             "adversarial attacker, simulator off)")
     parser.add_argument("--retrain", action="store_true")
     parser.add_argument("--train-ensemble", action="store_true",
                         help="Train the One-Class SVM second detector")
@@ -136,13 +139,18 @@ def main():
         start_process("IDS-ML", os.path.join("server", "ids_ml.py"), Colors.GREEN)
     time.sleep(1)
     
-    if not args.no_simulator:
+    # In the adversarial bypass demo we want a PURE attack feed (no benign
+    # simulator traffic) so the dashboard staying green is unambiguous proof.
+    run_simulator = not args.no_simulator and not args.adversarial
+    if run_simulator:
         start_process("SIMULATOR", os.path.join("simulator", "esp32_simulator.py"), Colors.CYAN, delay=1)
-    
+
     if args.attack:
         start_process("ATTACKER", os.path.join("attacker", "adaptive_fuzzer.py"), Colors.RED, delay=3)
     elif args.smart_attack:
         start_process("ATTACKER", os.path.join("attacker", "smart_controller.py"), Colors.RED, delay=3)
+    elif args.adversarial:
+        start_process("ATTACKER", os.path.join("attacker", "adversarial_whitebox.py"), Colors.RED, delay=3)
     
     print()
     log("SYSTEM", f"{Colors.BOLD}All components running!{Colors.RESET}", Colors.GREEN)
