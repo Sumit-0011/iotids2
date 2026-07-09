@@ -77,10 +77,10 @@
         <div class="glass-card intel-card">
             <div class="intel-header">
                 <span class="intel-title">🧠 Detection Intelligence</span>
-                <span class="intel-sub">Dual-Detector Ensemble &amp; Explainable AI</span>
+                <span class="intel-sub">Triple-Detector Ensemble &amp; Explainable AI</span>
             </div>
             <div class="intel-body">
-                <!-- Ensemble: two independent detectors vote -->
+                <!-- Ensemble: three independent detectors vote -->
                 <div class="intel-block">
                     <div class="intel-block-label">Ensemble Detectors</div>
                     <div class="model-chips">
@@ -93,6 +93,11 @@
                             <span class="chip-dot"></span>
                             <span class="chip-name">One-Class SVM</span>
                             <span class="chip-verdict" id="verdictOcsvm">—</span>
+                        </div>
+                        <div class="model-chip" id="chipDetector">
+                            <span class="chip-dot"></span>
+                            <span class="chip-name">Adversarial RF</span>
+                            <span class="chip-verdict" id="verdictDetector">—</span>
                         </div>
                     </div>
                     <div class="ensemble-verdict" id="ensembleVerdict">
@@ -209,7 +214,7 @@
 
     <!-- ═══════ FOOTER ═══════ -->
     <footer class="footer">
-        <span>IoT IDS Dashboard</span> v2.0 &nbsp;•&nbsp; Ensemble ML (Isolation Forest + One-Class SVM) &nbsp;•&nbsp; Explainable AI
+        <span>IoT IDS Dashboard</span> v3.0 &nbsp;•&nbsp; Triple Ensemble ML (Isolation Forest + One-Class SVM + Adversarial RF) &nbsp;•&nbsp; Explainable AI
     </footer>
 
 </div>

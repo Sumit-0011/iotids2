@@ -63,4 +63,4 @@ def reset():
 
 if __name__ == '__main__':
     print(f"[DASHBOARD] http://localhost:{DASHBOARD_PORT}")
-    app.run(host=DASHBOARD_HOST, port=DASHBOARD_PORT, threaded=True)
+    app.run(host=DASHBOARD_HOST, port=DASHBOARD_PORT, threaded=True, use_reloader=False)

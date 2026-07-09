@@ -1,15 +1,18 @@
 """
 ML-based Intrusion Detection System Server.
-Receives telemetry, runs a DUAL-DETECTOR ENSEMBLE (Isolation Forest + One-Class
-SVM), explains each detection (XAI feature attribution), and logs to CSV.
-The dashboard reads the CSV directly - no forwarding needed.
+Receives telemetry, runs a TRIPLE-DETECTOR ENSEMBLE:
+  1. Isolation Forest  — unsupervised, one-class, tree-based
+  2. One-Class SVM     — unsupervised, kernel boundary
+  3. Adversarial RF    — supervised RandomForest hardened against evasion attacks
 
-Two upgrades over the single-model version:
-  1. Ensemble  - a packet is flagged if EITHER detector flags it (config
-     ENSEMBLE_RULE). Two different model families are harder to evade than one.
-  2. Explainability - for every packet we compute how far each sensor sits from
-     the learned "normal" (a z-score from the scaler) and report which sensor
-     contributed most to the anomaly, plus the full % breakdown.
+A packet is flagged if ANY detector fires (ENSEMBLE_RULE = 'or').
+Also explains each detection via XAI feature attribution (z-score based).
+The dashboard reads the CSV log directly — no WebSocket needed.
+
+Graceful degradation:
+  - If ocsvm_model.pkl is missing  → dual-detector (IF + RF)
+  - If detector.pkl is missing     → dual-detector (IF + OCSVM)
+  - If both are missing            → single-detector (IF only)
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -18,6 +21,7 @@ from config import *
 from flask import Flask, request, jsonify
 import joblib
 import csv
+import pandas as pd
 import warnings
 from datetime import datetime
 
@@ -29,15 +33,24 @@ model = joblib.load(MODEL_PATH)
 scaler = joblib.load(SCALER_PATH)
 print("[IDS] Isolation Forest + scaler loaded OK")
 
-# Second detector is optional: if ocsvm_model.pkl is missing we degrade
-# gracefully to Isolation-Forest-only so the server always starts.
+# Second detector (One-Class SVM) is optional — degrade gracefully if absent.
 ocsvm = None
 if os.path.exists(OCSVM_MODEL_PATH):
     ocsvm = joblib.load(OCSVM_MODEL_PATH)
-    print("[IDS] One-Class SVM loaded OK - ensemble ACTIVE")
+    print("[IDS] One-Class SVM loaded OK")
 else:
-    print(f"[IDS] One-Class SVM not found at {OCSVM_MODEL_PATH} - running "
-          f"single-detector mode. Run: python training/train_ensemble.py")
+    print(f"[IDS] One-Class SVM not found at {OCSVM_MODEL_PATH} — skipping."
+          f" Run: python training/train_ensemble.py")
+
+# Third detector (Supervised Adversarial RandomForest) is also optional.
+# It is trained on RAW sensor features — no scaling needed.
+detector_rf = None
+if os.path.exists(DETECTOR_MODEL_PATH):
+    detector_rf = joblib.load(DETECTOR_MODEL_PATH)
+    print("[IDS] Supervised Detector (RF) loaded OK — triple-detector ensemble ACTIVE")
+else:
+    print(f"[IDS] Supervised Detector not found at {DETECTOR_MODEL_PATH} — skipping."
+          f" Run: python training/train_detector.py")
 
 last_detection = 0
 
@@ -127,11 +140,23 @@ def receive():
         else:
             svm_detected = if_detected  # mirror IF when the 2nd model is absent
 
+        # ── Detector 3: Supervised Adversarial RF (optional) ────────────
+        # The RF was trained on raw (unscaled) sensor features, so we feed
+        # it the raw `sensor` list wrapped in a DataFrame.
+        if detector_rf is not None:
+            raw_df = pd.DataFrame([sensor], columns=MODEL_FEATURES)
+            det_pred = detector_rf.predict(raw_df)[0]
+            # RF labels: 1 = attack, 0 = normal (supervised convention)
+            rf_detected = 1 if int(det_pred) == 1 else 0
+        else:
+            rf_detected = 0  # absent → abstain (don't inflate false-positives)
+
         # ── Ensemble verdict ────────────────────────────────────────────
+        votes = [if_detected, svm_detected, rf_detected]
         if ENSEMBLE_RULE == "and":
-            detected = 1 if (if_detected and svm_detected) else 0
-        else:  # "or" (default): flag if either detector fires
-            detected = 1 if (if_detected or svm_detected) else 0
+            detected = 1 if all(votes) else 0
+        else:  # "or" (default): flag if any detector fires
+            detected = 1 if any(votes) else 0
         last_detection = detected
 
         # ── Explainability ──────────────────────────────────────────────
@@ -140,7 +165,8 @@ def receive():
         timestamp = datetime.now().strftime("%H:%M:%S")
         row = (
             [timestamp] + sensor + meta
-            + [detected, score, if_detected, svm_detected, top_feature, attribution]
+            + [detected, score, if_detected, svm_detected, rf_detected,
+               top_feature, attribution]
         )
         with open(LOG_FILE, "a", newline="") as f:
             writer = csv.writer(f)
@@ -152,6 +178,7 @@ def receive():
             "score": score,
             "iforest": if_detected,
             "ocsvm": svm_detected,
+            "detector": rf_detected,
             "top_feature": top_feature,
             "attribution": attribution,
         })

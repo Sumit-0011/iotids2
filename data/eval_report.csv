@@ -1,0 +1,4 @@
+attack,samples,v1_IF_detected,v1_detect_%,v2_ens_detected,v2_detect_%,v3_tri_detected,v3_detect_%,gain_v2_to_v3
+baseline_aggressive,200,200,100.0,200,100.0,200,100.0,0.0
+adaptive_fuzzing,200,120,60.0,131,65.5,200,100.0,34.5
+whitebox_adversarial,200,0,0.0,0,0.0,200,100.0,100.0

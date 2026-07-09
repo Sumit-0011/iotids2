@@ -76,22 +76,28 @@ function parseAttribution(str) {
 // ── Update the Detection Intelligence panel (ensemble + XAI) ──
 function updateIntel(point) {
     const det = parseInt(point.detected) || 0;
-    // iforest/ocsvm columns may be absent on old rows -> fall back to `detected`.
-    const ifv  = point.iforest !== undefined ? parseInt(point.iforest) : det;
-    const svmv = point.ocsvm  !== undefined ? parseInt(point.ocsvm)  : det;
+    // iforest/ocsvm/detector columns may be absent on old rows -> fall back to `detected`.
+    const ifv  = point.iforest   !== undefined ? parseInt(point.iforest)   : det;
+    const svmv = point.ocsvm    !== undefined ? parseInt(point.ocsvm)    : det;
+    const detv = point.detector  !== undefined ? parseInt(point.detector)  : 0;
 
-    setChip('chipIforest', 'verdictIforest', ifv);
-    setChip('chipOcsvm', 'verdictOcsvm', svmv);
+    setChip('chipIforest',  'verdictIforest',  ifv);
+    setChip('chipOcsvm',    'verdictOcsvm',    svmv);
+    setChip('chipDetector', 'verdictDetector', detv);
 
     // Ensemble summary line explains WHY the final verdict is what it is.
     const verdictEl = document.getElementById('ensembleVerdict');
     if (det === 1) {
-        const who = (ifv && svmv) ? 'Both detectors agree' :
-                    ifv ? 'Isolation Forest flagged it' : 'One-Class SVM flagged it';
-        verdictEl.textContent = '⚠ ATTACK — ' + who;
+        // Build a list of which specific detectors fired.
+        const who = [];
+        if (ifv)  who.push('Isolation Forest');
+        if (svmv) who.push('One-Class SVM');
+        if (detv) who.push('Adversarial RF');
+        const whoStr = who.length > 0 ? who.join(' + ') + ' flagged it' : 'ensemble flagged it';
+        verdictEl.textContent = '⚠ ATTACK — ' + whoStr;
         verdictEl.className = 'ensemble-verdict verdict-attack';
     } else {
-        verdictEl.textContent = '✓ SAFE — both detectors clear';
+        verdictEl.textContent = '✓ SAFE — all detectors clear';
         verdictEl.className = 'ensemble-verdict verdict-safe';
     }
 

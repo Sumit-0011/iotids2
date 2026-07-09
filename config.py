@@ -84,6 +84,35 @@ OCSVM_PARAMS = {
 # "and" = flag only if all models agree (max precision).
 ENSEMBLE_RULE = "or"
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Supervised Adversarial Detector (blue-team, v3)
+#
+# The one-class IF/OCSVM models only know "far from normal", so an adversary who
+# hugs the normal boundary evades both (see attacker/adversarial_whitebox.py).
+# This third detector is a SUPERVISED classifier trained on labeled normal-vs-
+# attack data AND hardened with an adversarial-training loop, so it learns the
+# actual attack boundary instead of just a distance-from-normal radius.
+#
+# It joins the server as a 3rd vote under the same ENSEMBLE_RULE. If the file is
+# missing, the server degrades gracefully to the IF+OCSVM ensemble.
+# Trained on RAW sensor features (tree models don't need scaling).
+# ─────────────────────────────────────────────────────────────────────────────
+DETECTOR_MODEL_PATH = os.path.join(BASE_DIR, "models", "detector.pkl")
+
+# RandomForest hyperparameters for the supervised detector.
+DETECTOR_PARAMS = {
+    "n_estimators": 200,
+    "max_depth": None,
+    "class_weight": "balanced",
+    "random_state": 42,
+    "n_jobs": -1,
+}
+
+# Adversarial-training loop: how many attack->retrain rounds, and how many
+# adversarial samples to mine against the current model each round.
+ADV_TRAIN_ROUNDS = 6
+ADV_SAMPLES_PER_ROUND = 300
+
 # CSV log schema (order matters - written by server, read by dashboard).
 # Extends the original schema with the ensemble + explainability columns.
 # NOTE: kept separate from FEATURE_COLUMNS so existing tooling that relies on the
@@ -95,7 +124,8 @@ ENSEMBLE_RULE = "or"
 #   ocsvm        - One-Class SVM verdict (0/1)
 #   top_feature  - sensor that contributed most to the anomaly (XAI)
 #   attribution  - "temp:78|sound:15|..." per-feature % contribution (XAI)
+#   detector     - supervised adversarial detector verdict (0/1), 0 if absent
 LOG_COLUMNS = (
     ["timestamp"] + FEATURE_COLUMNS
-    + ["detected", "score", "iforest", "ocsvm", "top_feature", "attribution"]
+    + ["detected", "score", "iforest", "ocsvm", "detector", "top_feature", "attribution"]
 )
