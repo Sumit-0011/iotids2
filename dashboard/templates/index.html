@@ -145,30 +145,17 @@
                 <canvas id="humidityChart"></canvas>
             </div>
         </div>
-        <!-- Sound Level Chart -->
-        <div class="glass-card chart-card">
-            <div class="chart-header">
-                <span class="chart-title">
-                    <span class="chart-dot purple"></span>
-                    Sound Level
-                </span>
-                <span class="chart-value" id="soundValue">-- dB</span>
-            </div>
-            <div class="chart-wrapper">
-                <canvas id="soundChart"></canvas>
-            </div>
-        </div>
-        <!-- Battery Chart -->
+        <!-- Pressure Chart -->
         <div class="glass-card chart-card">
             <div class="chart-header">
                 <span class="chart-title">
                     <span class="chart-dot green"></span>
-                    Battery
+                    Pressure
                 </span>
-                <span class="chart-value" id="batteryValue">-- %</span>
+                <span class="chart-value" id="pressureValue">-- hPa</span>
             </div>
             <div class="chart-wrapper">
-                <canvas id="batteryChart"></canvas>
+                <canvas id="pressureChart"></canvas>
             </div>
         </div>
     </section>
@@ -188,9 +175,8 @@
                         <tr>
                             <th>Time</th>
                             <th>Temp</th>
+                            <th>Pressure</th>
                             <th>Humidity</th>
-                            <th>Sound</th>
-                            <th>Battery</th>
                             <th>Fuzz</th>
                             <th>Score</th>
                             <th>Cause</th>
@@ -199,7 +185,7 @@
                     </thead>
                     <tbody id="logBody">
                         <tr id="logEmpty">
-                            <td colspan="9">
+                            <td colspan="8">
                                 <div class="empty-state">
                                     <div class="empty-state-icon">📭</div>
                                     <div class="empty-state-text">Waiting for telemetry data…</div>

@@ -39,11 +39,24 @@ def history():
     try:
         if not os.path.exists(LOG_FILE):
             return jsonify({"total": 0, "rows": []})
-        df = pd.read_csv(LOG_FILE)
-        df = df.fillna(0)
-        total = len(df)
         since = request.args.get('since', type=int)
-        rows = df.iloc[since:] if since is not None else df.tail(100)
+        
+        if since is not None and since > 0:
+            try:
+                # O(1) memory parsing: skip the rows we already sent to the frontend
+                df = pd.read_csv(LOG_FILE, skiprows=range(1, since + 1))
+            except pd.errors.EmptyDataError:
+                return jsonify({"total": since, "rows": []})
+            
+            total = since + len(df)
+            rows = df
+        else:
+            # First load: parse the whole file but only send the tail
+            df = pd.read_csv(LOG_FILE)
+            total = len(df)
+            rows = df.tail(100)
+            
+        rows = rows.fillna(0)
         return jsonify({"total": total, "rows": rows.to_dict(orient='records')})
     except pd.errors.EmptyDataError:
         return jsonify({"total": 0, "rows": []})

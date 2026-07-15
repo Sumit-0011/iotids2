@@ -30,6 +30,8 @@ import numpy as np
 import pandas as pd
 import joblib
 import requests
+import warnings
+warnings.filterwarnings("ignore")
 
 
 # ── Load the defender's exact models (white-box knowledge) ──────────────────
@@ -64,12 +66,11 @@ def ensemble_flags(vec, model, scaler, ocsvm):
 
 
 # Normal-region centroid the search walks toward. Matches the training baseline
-# (temp 25, hum 60, no movement, sound 40, battery 80).
-NORMAL_CENTROID = np.array([25.0, 60.0, 0.0, 40.0, 80.0])
+# (temp 25, press 1013.25, hum 60).
+NORMAL_CENTROID = np.array([25.0, 1013.25, 60.0])
 
 # A blatantly malicious starting point the IDS should catch easily
-# (hot, humid, loud, draining battery -- a compromised/overheating device).
-ATTACK_SEED = np.array([40.0, 80.0, 1.0, 95.0, 65.0])
+ATTACK_SEED = np.array([40.0, 990.0, 80.0])
 
 
 def craft_adversarial(seed, model, scaler, ocsvm, steps=60):
@@ -88,7 +89,6 @@ def craft_adversarial(seed, model, scaler, ocsvm, steps=60):
     for i in range(1, steps + 1):
         alpha = i / steps                       # 0 -> 1 : seed -> centroid
         cand = seed + alpha * direction
-        cand[2] = round(cand[2])                # movement is 0/1, keep it integral
         flagged, _, _, if_score = ensemble_flags(cand, model, scaler, ocsvm)
         if flagged == 0:
             pert = float(np.linalg.norm(cand - seed))
@@ -100,10 +100,8 @@ def vec_to_payload(vec, tag="adv_whitebox", fuzz=0, interval=500):
     return {
         "device": tag,
         "temperature": round(float(vec[0]), 2),
-        "humidity": round(float(vec[1]), 2),
-        "movement": int(vec[2]),
-        "sound_level": round(float(vec[3]), 2),
-        "battery": round(float(vec[4]), 2),
+        "pressure": round(float(vec[1]), 2),
+        "humidity": round(float(vec[2]), 2),
         "fuzz": fuzz,
         "interval": interval,
     }
@@ -124,8 +122,7 @@ def run_whitebox(n=40, send=True, delay=1.0):
     total = 0
     for i in range(1, n + 1):
         # Vary the seed slightly each round so we don't send identical packets.
-        jitter = np.random.uniform(-2, 2, size=5)
-        jitter[2] = 0
+        jitter = np.random.uniform(-2, 2, size=3)
         seed = ATTACK_SEED + jitter
         adv, pert, if_score = craft_adversarial(seed, model, scaler, ocsvm)
 
@@ -153,7 +150,7 @@ def run_whitebox(n=40, send=True, delay=1.0):
         if verdict == 0:
             evaded += 1
 
-        print(f"[{i:02d}] adv=[T{adv[0]:.1f} H{adv[1]:.1f} S{adv[3]:.1f} B{adv[4]:.1f}] "
+        print(f"[{i:02d}] adv=[T{adv[0]:.1f} P{adv[1]:.1f} H{adv[2]:.1f}] "
               f"perturb(L2)={pert:5.2f}  IF_score={if_score:+.3f}  "
               f"live_detected={live_detected}  -> {'EVADED' if verdict == 0 else 'caught'}")
         if send:

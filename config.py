@@ -37,10 +37,8 @@ LIVE_TRAFFIC = os.path.join(BASE_DIR, "data", "live_traffic.csv")
 # META_COLUMNS so they are still logged for analysis, but never fed to the model.
 MODEL_FEATURES = [
     "temperature",
+    "pressure",
     "humidity",
-    "movement",
-    "sound_level",
-    "battery",
 ]
 
 # Attack-control metadata: logged alongside each sample but excluded from the model.

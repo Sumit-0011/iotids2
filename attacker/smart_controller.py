@@ -6,6 +6,8 @@ import time
 import requests
 import joblib
 import random
+import warnings
+warnings.filterwarnings("ignore")
 
 
 def run_smart_controller():
@@ -14,9 +16,8 @@ def run_smart_controller():
     scaler = joblib.load(SCALER_PATH)
 
     b_temp = 25.0
+    b_press = 1013.25
     b_hum = 60.0
-    b_sound = 40.0
-    b_batt = 80.0
 
     successes = 0
     total = 0
@@ -31,11 +32,11 @@ def run_smart_controller():
             cand_int = random.randint(200, 1500)
 
             cand_temp = b_temp + random.uniform(-cand_fuzz, cand_fuzz)
+            cand_press = b_press + random.uniform(-cand_fuzz, cand_fuzz)
             cand_hum = b_hum + random.uniform(-cand_fuzz, cand_fuzz)
-            cand_sound = b_sound + random.uniform(-cand_fuzz, cand_fuzz)
 
-            # Only the 5 sensor features are scored - fuzz/interval are not model inputs.
-            features = [[cand_temp, cand_hum, 0, cand_sound, b_batt]]
+            # Only the 3 sensor features are scored
+            features = [[cand_temp, cand_press, cand_hum]]
             scaled = scaler.transform(features)
             score = model.decision_function(scaled)[0]
 
@@ -44,10 +45,8 @@ def run_smart_controller():
                 best_payload = {
                     "device": "attacker_smart",
                     "temperature": round(cand_temp, 2),
+                    "pressure": round(cand_press, 2),
                     "humidity": round(cand_hum, 2),
-                    "movement": 0,
-                    "sound_level": round(cand_sound, 2),
-                    "battery": round(b_batt, 2),
                     "fuzz": cand_fuzz,
                     "interval": cand_int,
                 }

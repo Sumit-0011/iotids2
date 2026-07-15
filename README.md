@@ -1,18 +1,18 @@
 # IoT Intrusion Detection System (IDS) with Adaptive AI Evasion
 
-> **ML-based anomaly detection for IoT sensor networks** — with an adaptive fuzzing framework that demonstrates how attackers can evade machine learning defenses, and how adversarial retraining can close the gap.
+> **ML-based anomaly detection for IoT sensor networks** — featuring a Triple-Detector Ensemble (Isolation Forest + One-Class SVM + Adversarial RF), an adaptive fuzzing framework, and a real-time visualization dashboard to demonstrate evasion attacks and defense-in-depth strategies.
 
 ---
 
 ## Architecture
 
 ```
-+------------------+   POST /    +------------------------+
-|                  | ----------> |                        |
-|  IoT Simulator   |             |   IDS Server (ML)      |
-|  (Python ESP32)  |             |   Isolation Forest     |
-|                  | <-- /cmd -- |                        |
-+------------------+             +------------------------+
++------------------+   POST /    +--------------------------------+
+|                  | ----------> |                                |
+|  IoT Simulator   |             |   IDS Server (ML)              |
+|  (Python ESP32)  |             |   Triple-Detector Ensemble     |
+|                  | <-- /cmd -- |   (IF + OCSVM + RF)            |
++------------------+             +--------------------------------+
         ^                                  |
         |                        writes to |
         |                       data2.csv  |
@@ -26,9 +26,9 @@
 
 **How it works:**
 1. The **ESP32 Simulator** generates sensor telemetry (temperature, humidity, sound, battery) and POSTs it to the IDS Server every 0.2 – 1 second
-2. The **IDS Server** runs the data through an Isolation Forest model using only genuine sensor features (fuzz/interval are logged as metadata, never fed to the model), flags anomalies, and writes every result row to `data/data2.csv`
-3. The **Adaptive Attacker** crafts its own telemetry, POSTs it directly to the IDS Server, and reads the `detected` verdict from the response to adapt its `fuzz` and `interval` attack parameters in real-time
-4. The **Dashboard** simply polls `/api/history` every second and plots whatever is in `data2.csv` — no WebSockets required
+2. The **IDS Server** runs the data through a **Triple-Detector Ensemble** (Isolation Forest, One-Class SVM, and Adversarial RF) using only genuine sensor features. It extracts XAI explainability metrics, flags anomalies if any detector fires, and writes every result row to `data/data2.csv`
+3. The **Red-Team Attacker Suite** crafts its own malicious telemetry, POSTs it directly to the IDS Server, and reads the `detected` verdict to adapt its `fuzz` and `interval` attack parameters in real-time or perform white-box evasion
+4. The **Dashboard** polls `/api/history` every second and plots the data along with XAI feature attributions and ensemble verdicts — no WebSockets required
 
 ---
 
@@ -47,7 +47,9 @@ iotids2/
 │
 ├── attacker/
 │   ├── adaptive_fuzzer.py      # Feedback-driven fuzzer
-│   └── smart_controller.py     # ML-guided evasion controller
+│   ├── smart_controller.py     # ML-guided evasion controller
+│   ├── adversarial_whitebox.py # Minimal-perturbation boundary attack
+│   └── run_attacks.py          # Reproducible evasion benchmark
 │
 ├── simulator/
 │   └── esp32_simulator.py      # Python ESP32 simulator
@@ -62,14 +64,17 @@ iotids2/
 │
 ├── training/
 │   ├── train_model.py          # Train Isolation Forest from scratch
+│   ├── train_ensemble.py       # Train One-Class SVM detector
+│   ├── train_detector.py       # Train Adversarial Random Forest detector
+│   ├── eval_detector.py        # Evaluate v1 (IF) vs v2 (IF+OCSVM) vs v3 (Triple)
 │   ├── merge_data.py           # Merge training datasets
-│   └── retrain.py              # Adversarial retraining + v1 vs v2 evaluation
+│   └── retrain.py              # Adversarial retraining pipeline
 │
 ├── models/
 │   ├── ids_model.pkl           # Active Isolation Forest model
-│   ├── scaler.pkl              # Active StandardScaler
-│   ├── ids_model_v2.pkl        # Retrained model (after running retrain.py)
-│   └── scaler_v2.pkl
+│   ├── ocsvm_model.pkl         # Active One-Class SVM model
+│   ├── detector.pkl            # Active Adversarial Random Forest model
+│   └── scaler.pkl              # Active StandardScaler
 │
 ├── data/
 │   ├── data2.csv               # Live detection log (written by IDS, read by dashboard)
@@ -136,9 +141,12 @@ python attacker/smart_controller.py
 | `python run.py` | Start IDS + Simulator + Dashboard |
 | `python run.py --attack` | Also start simple adaptive fuzzer |
 | `python run.py --smart-attack` | Also start ML-guided attacker |
+| `python run.py --adversarial` | Live white-box adversarial bypass demo |
 | `python run.py --rule-based` | Use threshold-based IDS instead of ML |
 | `python run.py --no-dashboard` | Skip web dashboard |
+| `python run.py --no-simulator` | Skip normal background simulator traffic |
 | `python run.py --retrain` | Run adversarial retraining pipeline |
+| `python run.py --train-ensemble` | Train the One-Class SVM second detector |
 | `python run.py --plot` | Generate analysis graphs |
 
 ---
@@ -183,18 +191,25 @@ The dashboard uses a dead-simple, rock-solid approach:
 - The browser JS calls `fetch('/api/history')` every **1 second** and plots new rows
 - **No WebSockets, no SocketIO, no external CDN dependencies** — everything is served locally
 
-### Isolation Forest Detection
-The IDS uses scikit-learn's Isolation Forest, which detects anomalies by measuring how easily a data point can be "isolated" from the training distribution:
-- **Normal data** — requires many splits to isolate → **high score (positive)**
-- **Anomalous data** — isolated quickly → **low score (negative → flagged)**
+### Triple-Detector Ensemble & Explainable AI (XAI)
+The IDS uses a Triple-Detector architecture to maximize detection while maintaining interpretability:
+1. **Isolation Forest:** Unsupervised, tree-based anomaly detection.
+2. **One-Class SVM:** Unsupervised kernel boundary detection.
+3. **Adversarial Random Forest:** Supervised model hardened against white-box evasion attacks.
 
-The model is trained **exclusively on genuine sensor features** (temperature, humidity, movement, sound_level, battery). Attacker control parameters (`fuzz`, `interval`) are logged for analysis but **never fed to the model**, ensuring detection is based on actual sensor anomalies, not metadata leakage.
+A packet is flagged as an attack if **any** of the detectors fire.
 
-### Adaptive Evasion Strategies
-| Controller | Strategy |
-|------------|----------|
+The model is trained **exclusively on genuine sensor features** (temperature, humidity, movement, sound_level, battery). Attacker control parameters (`fuzz`, `interval`) are logged for analysis but **never fed to the models**, ensuring detection is based on actual sensor anomalies, not metadata leakage.
+
+Additionally, the system provides **z-score based Explainable AI (XAI) attribution**, allowing the dashboard to explain *why* an attack was flagged (e.g., "temperature = 78% of the reason this looked like an attack").
+
+### Red-Team Attack Suite & Evasion Strategies
+| Component | Strategy |
+|-----------|----------|
 | `adaptive_fuzzer.py` | Real-time feedback loop — sends each probe directly to IDS, reads `detected` from response, escalates `fuzz` if undetected, reduces if caught |
-| `smart_controller.py` | White-box guided evasion — loads local copy of the IDS model, generates 8 candidate perturbations per iteration, scores them with the model, sends the best-scoring candidate to IDS to measure real evasion success |
+| `smart_controller.py` | ML-guided evasion — loads local copy of the IDS model, generates candidate perturbations, scores them with the model, sends the best-scoring candidate to IDS |
+| `adversarial_whitebox.py` | Minimal-perturbation boundary attack — walks a malicious seed toward the normal centroid until the ensemble stops flagging it |
+| `run_attacks.py` | Reproducible offline evasion benchmark across multiple attack strategies |
 
 ### Adversarial Retraining
 `training/retrain.py`:

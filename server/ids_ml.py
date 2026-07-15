@@ -57,10 +57,8 @@ last_detection = 0
 # Short labels for the explainability breakdown, aligned to MODEL_FEATURES order.
 FEATURE_LABELS = {
     "temperature": "temp",
+    "pressure": "press",
     "humidity": "hum",
-    "movement": "move",
-    "sound_level": "sound",
-    "battery": "batt",
 }
 
 # CSV schema now carries the ensemble verdicts and the explainability columns.
@@ -112,13 +110,7 @@ def receive():
     data = request.json
     try:
         # Genuine sensor readings - the only thing the models are allowed to see.
-        sensor = [
-            float(data.get("temperature", 0)),
-            float(data.get("humidity", 0)),
-            int(data.get("movement", 0)),
-            float(data.get("sound_level", 0)),
-            float(data.get("battery", 0)),
-        ]
+        sensor = [float(data.get(f, 0)) for f in MODEL_FEATURES]
         # Attack-control metadata - logged for analysis, never fed to the models.
         meta = [
             int(data.get("fuzz", 0)),
@@ -171,6 +163,27 @@ def receive():
         with open(LOG_FILE, "a", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(row)
+
+        # ── Ground truth (from TON_IoT dataset, if provided) ────────────
+        gt_label = data.get("ground_truth_label")       # 0=normal, 1=attack
+        gt_type  = data.get("ground_truth_type", "")     # normal/injection/backdoor/ddos
+
+        # Terminal output for the CLI monitor
+        gt_str = ""
+        if gt_label is not None:
+            gt_tag = f"{gt_type.upper()}" if int(gt_label) == 1 else "NORMAL"
+            # Check if our detection matches the ground truth
+            correct = (detected == int(gt_label))
+            if correct:
+                accuracy_icon = "\033[92mOK\033[0m"  # green OK
+            else:
+                accuracy_icon = "\033[93mMISS\033[0m"  # yellow MISS (mismatch)
+            gt_str = f" | Truth: {gt_tag:<10s} {accuracy_icon}"
+
+        if detected:
+            print(f"[\033[91m!\033[0m] \033[91mATTACK DETECTED\033[0m | Temp: {sensor[0]:.1f}C | Press: {sensor[1]:.1f}hPa | Hum: {sensor[2]:.1f}% | Cause: {attribution}{gt_str}")
+        else:
+            print(f"[\033[92m+\033[0m] SAFE            | Temp: {sensor[0]:.1f}C | Press: {sensor[1]:.1f}hPa | Hum: {sensor[2]:.1f}%{gt_str}")
 
         return jsonify({
             "status": "ok",

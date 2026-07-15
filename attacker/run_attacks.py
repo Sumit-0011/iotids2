@@ -23,6 +23,8 @@ from config import *
 
 import numpy as np
 import pandas as pd
+import warnings
+warnings.filterwarnings("ignore")
 
 from adversarial_whitebox import (
     load_ensemble, ensemble_flags, craft_adversarial,
@@ -38,11 +40,9 @@ def gen_baseline_aggressive(n):
     out = []
     for _ in range(n):
         out.append([
-            25.0 + RNG.uniform(10, 20),    # 35-45 C
-            60.0 + RNG.uniform(15, 25),    # 75-85 %
-            RNG.integers(0, 2),
-            40.0 + RNG.uniform(40, 80),    # 80-120 dB
-            80.0 - RNG.uniform(5, 15),
+            25.0 + RNG.uniform(10, 20),    # temperature
+            1013.25 - RNG.uniform(15, 30), # pressure
+            60.0 + RNG.uniform(15, 25),    # humidity
         ])
     return out
 
@@ -51,14 +51,13 @@ def gen_adaptive_fuzzing(n):
     """The heuristic fuzzer jitters around baselines with growing fuzz. We sweep
     fuzz 1..8 the way the feedback loop would, jittering each sensor."""
     out = []
-    base = np.array([25.0, 60.0, 0.0, 40.0, 80.0])
+    base = np.array([25.0, 1013.25, 60.0])
     for i in range(n):
         fuzz = 1 + (i % 8)
         v = base.copy()
         v[0] += RNG.uniform(-fuzz, fuzz)
         v[1] += RNG.uniform(-fuzz, fuzz)
-        v[3] += RNG.uniform(-fuzz, fuzz)
-        v[2] = RNG.integers(0, 2)
+        v[2] += RNG.uniform(-fuzz, fuzz)
         out.append(v.tolist())
     return out
 
@@ -67,8 +66,7 @@ def gen_whitebox_adversarial(n, model, scaler, ocsvm):
     """Minimal-perturbation adversarial examples from the white-box search."""
     out = []
     for _ in range(n):
-        jitter = RNG.uniform(-2, 2, size=5)
-        jitter[2] = 0
+        jitter = RNG.uniform(-2, 2, size=3)
         seed = ATTACK_SEED + jitter
         adv, _pert, _score = craft_adversarial(seed, model, scaler, ocsvm)
         if adv is not None:

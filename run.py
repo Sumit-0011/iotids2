@@ -47,7 +47,7 @@ def start_process(name, script_path, color, delay=0):
     log(name, f"Starting {script_path}...", color)
     
     proc = subprocess.Popen(
-        [sys.executable, full_path],
+        [sys.executable, "-u", full_path],
         cwd=BASE_DIR,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -70,27 +70,31 @@ def cleanup(signum=None, frame=None):
     log("SYSTEM", "All components stopped. Goodbye!", Colors.GREEN)
     sys.exit(0)
 
+def _reader_thread(name, proc, color):
+    """Read lines from a subprocess stdout in a dedicated thread."""
+    try:
+        for line in proc.stdout:
+            line = line.strip()
+            if line:
+                log(name, line, color)
+    except:
+        pass
+
 def stream_output():
-    import select
-    import io
+    import threading as _threading
     
-    while True:
-        alive = False
-        for name, proc, color in processes:
-            if proc and proc.poll() is None:
-                alive = True
-                try:
-                    line = proc.stdout.readline()
-                    if line:
-                        line = line.strip()
-                        if line:
-                            log(name, line, color)
-                except:
-                    pass
-        
-        if not alive:
-            break
-        time.sleep(0.05)
+    # Spawn one reader thread per subprocess so readline() calls
+    # never block each other (critical on Windows where select()
+    # does not work on pipes).
+    readers = []
+    for name, proc, color in processes:
+        t = _threading.Thread(target=_reader_thread, args=(name, proc, color), daemon=True)
+        t.start()
+        readers.append(t)
+    
+    # Wait until all subprocesses have exited.
+    while any(proc.poll() is None for _, proc, _ in processes):
+        time.sleep(0.5)
 
 def main():
     parser = argparse.ArgumentParser(description="IoT IDS Unified Launcher")

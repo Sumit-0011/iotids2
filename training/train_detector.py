@@ -57,15 +57,11 @@ def z_distance(vectors, scaler):
 
 
 def random_attack_seeds(k):
-    """Blatantly malicious seeds spread across many directions (hot/cold, loud/
-    quiet, humid/dry, draining battery) so the boundary is learned everywhere,
-    not just along one attack axis."""
+    """Blatantly malicious seeds spread across many directions so the boundary is learned everywhere."""
     return np.column_stack([
-        RNG.uniform(15, 45, k),     # temperature
-        RNG.uniform(40, 90, k),     # humidity
-        RNG.integers(0, 2, k),      # movement
-        RNG.uniform(20, 120, k),    # sound_level
-        RNG.uniform(40, 100, k),    # battery
+        RNG.uniform(10, 45, k),      # temperature
+        RNG.uniform(990, 1030, k),   # pressure
+        RNG.uniform(40, 90, k),      # humidity
     ]).astype(float)
 
 
@@ -80,7 +76,6 @@ def craft_against(clf, seed, steps=80):
     direction = NORMAL_CENTROID - seed
     for i in range(1, steps + 1):
         cand = seed + (i / steps) * direction
-        cand[2] = round(cand[2])
         if clf.predict(pd.DataFrame([cand], columns=MODEL_FEATURES))[0] == 0:
             return cand
     return None

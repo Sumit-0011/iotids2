@@ -4,9 +4,8 @@ const MAX_POINTS = 60;
 
 const chartConfigs = {
     temperature: { label: 'Temperature', color: '#ff6b35', elementId: 'tempChart', valueId: 'tempValue', unit: 'C' },
-    humidity:    { label: 'Humidity',     color: '#7ec8e3', elementId: 'humidityChart', valueId: 'humidityValue', unit: '%' },
-    sound_level: { label: 'Sound Level', color: '#c77dff', elementId: 'soundChart', valueId: 'soundValue', unit: 'dB' },
-    battery:     { label: 'Battery',     color: '#00ff88', elementId: 'batteryChart', valueId: 'batteryValue', unit: '%' }
+    pressure:    { label: 'Pressure',    color: '#00ff88', elementId: 'pressureChart', valueId: 'pressureValue', unit: 'hPa' },
+    humidity:    { label: 'Humidity',    color: '#7ec8e3', elementId: 'humidityChart', valueId: 'humidityValue', unit: '%' }
 };
 
 const charts = {};
@@ -60,8 +59,7 @@ function pushPoint(point, animate) {
 
 // ── Full sensor names for the attribution display ────────────
 const FEATURE_FULLNAME = {
-    temp: 'Temperature', hum: 'Humidity', move: 'Movement',
-    sound: 'Sound Level', batt: 'Battery'
+    temp: 'Temperature', hum: 'Humidity', press: 'Pressure'
 };
 
 // Parse the server's "temp:78|sound:15|..." attribution string into pairs.
@@ -152,9 +150,8 @@ function addLogEntry(point) {
 
     row.innerHTML = '<td>' + (point.timestamp || '--') + '</td>'
         + '<td>' + (parseFloat(point.temperature)||0).toFixed(1) + '</td>'
+        + '<td>' + (parseFloat(point.pressure)||0).toFixed(1) + '</td>'
         + '<td>' + (parseFloat(point.humidity)||0).toFixed(1) + '</td>'
-        + '<td>' + (parseFloat(point.sound_level)||0).toFixed(1) + '</td>'
-        + '<td>' + (parseFloat(point.battery)||0).toFixed(1) + '</td>'
         + '<td>' + (point.fuzz || 0) + '</td>'
         + '<td>' + (parseFloat(point.score)||0).toFixed(4) + '</td>'
         + '<td>' + cause + '</td>'

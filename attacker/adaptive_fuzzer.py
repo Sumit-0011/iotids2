@@ -6,8 +6,7 @@ import time
 import random
 import requests
 
-# Sensor baselines the compromised device reports around.
-BASELINES = {"temperature": 25.0, "humidity": 60.0, "sound_level": 40.0, "battery": 80.0}
+BASELINES = {"temperature": 25.0, "pressure": 1013.25, "humidity": 60.0}
 
 
 def craft_payload(fuzz, interval):
@@ -15,10 +14,8 @@ def craft_payload(fuzz, interval):
     return {
         "device": "attacker_probe",
         "temperature": round(BASELINES["temperature"] + random.uniform(-fuzz, fuzz), 2),
+        "pressure": round(BASELINES["pressure"] + random.uniform(-fuzz, fuzz), 2),
         "humidity": round(BASELINES["humidity"] + random.uniform(-fuzz, fuzz), 2),
-        "movement": random.choice([0, 1]),
-        "sound_level": round(BASELINES["sound_level"] + random.uniform(-fuzz, fuzz), 2),
-        "battery": round(BASELINES["battery"], 2),
         "fuzz": fuzz,
         "interval": interval,
     }
